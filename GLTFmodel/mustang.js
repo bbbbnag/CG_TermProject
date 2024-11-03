@@ -3,6 +3,13 @@ window.onload = function init() {
     const speed = 0.3;
     let car; // 자동차 모델을 위한 전역 변수로 설정
 
+	let wheels = []; // 바
+	const wheelSpeed = 0.1; // 바퀴 회전 속도 설정
+
+	const wheelRadius = 0.5; // 바퀴의 반지름 (실제 모델에 맞게 수정)
+	const wheelCircumference = 2 * Math.PI * wheelRadius; // 바퀴의 둘레
+	let distanceTraveled = 0; // 차량이 이동한 거리
+
     // 씬 생성
     const canvas = document.getElementById("gl-canvas");
     canvas.width = window.innerWidth;
@@ -35,15 +42,30 @@ window.onload = function init() {
     track.rotation.x = -Math.PI / 2; // 평면을 수평으로 설정
     scene.add(track);
 
+	let frontLeftWheel, frontRightWheel, rearLeftWheel, rearRightWheel; // 바퀴를 위한 변수들
+
     // GLTFLoader를 통한 자동차 모델 로드
     const loader = new THREE.GLTFLoader();
     loader.load('http://localhost:8080/model2/scene.gltf', function (gltf) {
-        car = gltf.scene.children[0];
-        car.scale.set(1, 1, 1);
-        car.position.set(0, 0.25, 0); // 바닥에서 약간 위에 위치
-		camera.position.set(0,0.25,0);
-        scene.add(gltf.scene);
-        animate();
+        car = gltf.scene; // 기본 자동차 그룹
+		
+    // 바퀴 찾기
+    
+    car.traverse((child) => {
+        if (child.name.includes("Wheel")) { // 바퀴 이름에 "Wheel"이 포함된 경우
+            wheels.push(child); // 바퀴를 배열에 추가
+        }
+    });
+
+    // 확인: 바퀴 배열 출력
+    console.log("Found wheels:", wheels);
+	car.scale.set(5, 5, 5);
+	car.position.set(0, 0, 0); // 바닥에서 약간 위에 위치
+	camera.position.set(0,10.25,-20); // x y z
+    scene.add(gltf.scene);
+    animate();
+        
+        
     }, undefined, function (error) {
         console.error(error);
     });
@@ -70,36 +92,47 @@ window.onload = function init() {
     function animate() {
         requestAnimationFrame(animate);
 
+		let moveDistance = 0; // 현재 프레임에서 이동 거리 초기화
         // 차량 이동
         if (car) {
             if (forward) {
                 car.position.x += Math.sin(car.rotation.y) * speed;
                 car.position.z += Math.cos(car.rotation.y) * speed;
+				camera.position.x += Math.sin(car.rotation.y) * speed;
+				camera.position.z +=Math.cos(car.rotation.y)*speed;
+				wheels.forEach(wheel => {
+					wheel.rotation.y += wheelSpeed; // 바퀴 회전
+				});
             }
 
             if (backward) {
                 car.position.x -= Math.sin(car.rotation.y) * speed;
                 car.position.z -= Math.cos(car.rotation.y) * speed;
+				camera.position.x -= Math.sin(car.rotation.y) * speed;
+				camera.position.z -=Math.cos(car.rotation.y)*speed;
+				wheels.forEach(wheel => {
+					// 바퀴의 회전 각도 계산
+					const rotationAmount = (moveDistance / wheelCircumference) * (2 * Math.PI); // 굴러가는 각도 계산
+					wheel.rotation.x += rotationAmount; // Y축을 기준으로 회전
+				});
             }
 
             if (left) {
-                car.rotation.z += 0.03; // 회전 속도
+                car.rotation.y+= 0.03; // 회전 속도
+				camera.rotation.x+=0.03;
             }
 
             if (right) {
-                car.rotation.z -= 0.03; // 회전 속도
+                car.rotation.y-= 0.03; // 회전 속도
+				camera.rotation.x-=0.03;
             }
+			
 
-          
+			//car.rotation.z +=0.3;
 
             // 차량의 회전에 따라 카메라 위치 계산
            
-			camera.position.set(
-				car.position.x ,                   // 차량의 X 위치
-				car.position.y + cameraHeight,    // 차량의 Y 위치 + 카메라 높이
-				car.position.z + 5     // 차량의 Z 위치 - 카메라와의 거리
-			);
-		
+			
             // 카메라가 차량을 바라보도록 설정
             camera.lookAt(car.position);
 
